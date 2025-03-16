@@ -2,8 +2,8 @@
 #include <NetworkClientSecure.h>
 #include <NetworkClient.h>
 #include <WiFiClientSecure.h>
-// #include <HTTPClient.h>
 #include <PubSubClient.h>
+#include <Arduino_JSON.h>
 #include "DHT.h"
 
 #define PPP_MODEM_APN "claro.com.br" 
@@ -26,11 +26,14 @@ const char* sub_topic = "devices/teste";
 const char* URL = "06c5f64164d14759bb3b8c2d6b4bb33c.s1.eu.hivemq.cloud"; // EMQX 
 float temp; // Temperatura
 float hum; // Umidade 
+int intervalo = 10000;
+unsigned long ultimaExec = 0; 
 
 bool dataMode = false; 
 NetworkClientSecure client;
 PubSubClient mqtt(client);
 DHT sensor(4, DHT22);
+JSONVar dados; 
 
 static const char *root_ca PROGMEM = R"EOF(
 -----BEGIN CERTIFICATE-----
@@ -129,6 +132,18 @@ void callback(char* topic, byte* payload, unsigned int length){
     Serial.println(message);
 }
 
+void sendDados(){
+       temp = sensor.readTemperature();
+       hum = sensor.readHumidity();
+
+       dados["temperatura"] = temp; 
+       dados["umidade"] = hum; 
+       String tempHum = JSON.stringify(dados);
+
+      mqtt.publish("esp32/youtube", tempHum.c_str());
+      delay(10000);
+}
+
 void setup() {
     Serial.begin(115200);
     sensor.begin(); // Inicializa o sensor 
@@ -205,6 +220,8 @@ void setup() {
 
 void loop() {
 
+  unsigned long agora = millis(); 
+
   if(!PPP.connected()){
       unsigned long _tg = millis();
       while(!PPP.connected()) {
@@ -212,15 +229,11 @@ void loop() {
       }
   } 
 
-  temp = sensor.readTemperature();
-  hum = sensor.readHumidity();
-
   if(!mqtt.connected()){
       reconnect();
   } else {
-      mqtt.publish("esp32/youtube", String(temp).c_str());
-      mqtt.publish("esp32/youtube", String(hum).c_str());
-  }
 
-      mqtt.loop();
+  } 
+    mqtt.loop();
+    sendDados();
 }
