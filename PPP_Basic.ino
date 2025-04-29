@@ -18,11 +18,12 @@
 
 // Variáveis 
 
-const char* user = "admin";
-const char* password = "iuDiEpV746kt24C";
-const char* clientid = "esp32-youtube-blablabla";
-const char* pub_topic = "devices/teste";
-const char* sub_topic = "devices/teste";
+const char* user = "youtube";
+const char* password = "Ll123456";
+const char* clientid = "esp32-youtube-awdawdawdawdawdaw";
+const char* pub_topic = "devices/esp32";
+const char* sub_topic = "devices/esp32";
+const char* will_topic = "logs/esp32";
 const char* URL = "06c5f64164d14759bb3b8c2d6b4bb33c.s1.eu.hivemq.cloud"; // EMQX 
 float temp; // Temperatura
 float hum; // Umidade 
@@ -105,10 +106,10 @@ void reconnect(){
   while(!mqtt.connected()){
     Serial.print("[MQTT] Conectando...");
 
-    if(mqtt.connect(clientid, user, password)){
+    if(mqtt.connect(clientid, user, password, will_topic, 0, false, "Cliente desconectado!", true)){
         Serial.print("[MQTT] Conectado!");
-        mqtt.publish("esp32/youtube", "Um salve para a galera do canal da FAT no Youtube!");
-        mqtt.subscribe("esp32/youtube");
+        mqtt.publish(will_topic, "Um salve para a galera do canal da FAT no Youtube!");
+        mqtt.subscribe(sub_topic);
     } else {
         Serial.print("[MQTT] Houve uma falha! erro =");
         Serial.print(mqtt.state());
@@ -235,5 +236,5 @@ void loop() {
 
   } 
     mqtt.loop();
-    sendDados();
+    // sendDados();
 }
