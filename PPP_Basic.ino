@@ -28,6 +28,7 @@ const char* URL = "06c5f64164d14759bb3b8c2d6b4bb33c.s1.eu.hivemq.cloud"; // EMQX
 float temp; // Temperatura
 float hum; // Umidade 
 int intervalo = 10000;
+int connectionRetry = 0;
 unsigned long ultimaExec = 0; 
 
 bool dataMode = false; 
@@ -103,20 +104,21 @@ void setClock() {
 }
 
 void reconnect(){
-  while(!mqtt.connected()){
     Serial.print("[MQTT] Conectando...");
 
+    Serial.println("Tentativas de reconexão: "); 
+    Serial.println(connectionRetry);
     if(mqtt.connect(clientid, user, password, will_topic, 0, false, "Cliente desconectado!", true)){
         Serial.print("[MQTT] Conectado!");
         mqtt.publish(will_topic, "Um salve para a galera do canal da FAT no Youtube!");
         mqtt.subscribe(sub_topic);
     } else {
         Serial.print("[MQTT] Houve uma falha! erro =");
+        connectionRetry += 1; 
         Serial.print(mqtt.state());
         Serial.println(" ");
-        delay(5000);
+        delay(2000);
     }
-  }
 }
 
 void callback(char* topic, byte* payload, unsigned int length){
@@ -133,33 +135,7 @@ void callback(char* topic, byte* payload, unsigned int length){
     Serial.println(message);
 }
 
-void sendDados(){
-       temp = sensor.readTemperature();
-       hum = sensor.readHumidity();
-
-       dados["temperatura"] = temp; 
-       dados["umidade"] = hum; 
-       String tempHum = JSON.stringify(dados);
-
-      mqtt.publish("esp32/youtube", tempHum.c_str());
-      delay(10000);
-}
-
-void setup() {
-    Serial.begin(115200);
-    sensor.begin(); // Inicializa o sensor 
-
-    // Listen for modem events
-    Network.onEvent(onEvent);
-    
-    // Set SSL 
-    client.setCACert(root_ca);
-    delay(2000);
-    // MQTT setup 
-    mqtt.setServer(URL, 8883);
-    mqtt.setCallback(callback);
-    // Configure the modem
-
+void connectRoutine(){
     PPP.setApn(PPP_MODEM_APN);
     PPP.setPins(PPP_MODEM_TX, PPP_MODEM_RX);
     Serial.println("Starting the modem. It might take a while!");
@@ -169,7 +145,6 @@ void setup() {
     Serial.print("Model: ");
     Serial.println(PPP.moduleName());
     Serial.print("IMEI: ");
-    // Serial.println(PPP.IMEI());
 
     bool attached = PPP.attached();
     if (!attached) {
@@ -211,29 +186,54 @@ void setup() {
         Serial.println("Failed to connect to internet!");
       } else {
         Serial.println("Connected to internet!");
+        connectionRetry = 0; 
       }
     } else {
       Serial.println("Failed to connect to network!");
     }
+}
+
+void sendDados(){
+       temp = sensor.readTemperature();
+       hum = sensor.readHumidity();
+
+       dados["temperatura"] = temp; 
+       dados["umidade"] = hum; 
+       String tempHum = JSON.stringify(dados);
+
+      mqtt.publish("esp32/youtube", tempHum.c_str());
+      delay(10000);
+}
+
+void setup() {
+    Serial.begin(115200);
+    // sensor.begin(); // Inicializa o sensor 
+
+    // Listen for modem events
+    Network.onEvent(onEvent);
+    
+    // Set SSL 
+    client.setCACert(root_ca);
+    delay(2000);
+    // MQTT setup 
+    mqtt.setServer(URL, 8883);
+    mqtt.setCallback(callback);
+    // Configure the modem
+    // Serial.println(PPP.IMEI());
+    connectRoutine();
 
     setClock();
 }
 
 void loop() {
 
-  unsigned long agora = millis(); 
-
-  if(!PPP.connected()){
-      unsigned long _tg = millis();
-      while(!PPP.connected()) {
-        if (millis() > (_tg + 10000)) { PPP.mode(ESP_MODEM_MODE_CMUX); }
-      }
-  } 
+  if(connectionRetry > 2){
+      PPP.end();
+      connectRoutine();
+  }
 
   if(!mqtt.connected()){
       reconnect();
-  } else {
-
   } 
     mqtt.loop();
     // sendDados();
