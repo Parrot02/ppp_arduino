@@ -11,9 +11,9 @@
 
 #define PPP_MODEM_TX      17
 #define PPP_MODEM_RX      16
-#define PPP_MODEM_RTS     -1
-#define PPP_MODEM_CTS     -1
-#define PPP_MODEM_FC      ESP_MODEM_FLOW_CONTROL_NONE
+#define PPP_MODEM_RTS     27 // -1 
+#define PPP_MODEM_CTS     26 // -1 
+#define PPP_MODEM_FC      ESP_MODEM_FLOW_CONTROL_HW
 #define PPP_MODEM_MODEL   PPP_MODEM_GENERIC
 
 // Variáveis 
